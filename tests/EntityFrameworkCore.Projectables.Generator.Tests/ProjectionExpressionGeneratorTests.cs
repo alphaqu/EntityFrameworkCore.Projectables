@@ -19,7 +19,9 @@ namespace EntityFrameworkCore.Projectables.Generator.Tests
     {
         readonly ITestOutputHelper _testOutputHelper;
 
-        public ProjectionExpressionGeneratorTests(ITestOutputHelper testOutputHelper)
+        public ProjectionExpressionGeneratorTests(
+            ITestOutputHelper testOutputHelper
+        )
         {
             _testOutputHelper = testOutputHelper;
         }
@@ -27,9 +29,11 @@ namespace EntityFrameworkCore.Projectables.Generator.Tests
         [Fact]
         public void EmtpyCode_Noop()
         {
-            var compilation = CreateCompilation(@"
+            var compilation = CreateCompilation(
+                @"
 class C { }
-");
+"
+            );
 
             var result = RunGenerator(compilation);
 
@@ -40,7 +44,8 @@ class C { }
         [Fact]
         public Task SimpleProjectableMethod()
         {
-            var compilation = CreateCompilation(@"
+            var compilation = CreateCompilation(
+                @"
 using System;
 using EntityFrameworkCore.Projectables;
 namespace Foo {
@@ -49,7 +54,8 @@ namespace Foo {
         public int Foo() => 1;
     }
 }
-");
+"
+            );
 
             var result = RunGenerator(compilation);
 
@@ -62,7 +68,8 @@ namespace Foo {
         [Fact]
         public Task SimpleProjectableProperty()
         {
-            var compilation = CreateCompilation(@"
+            var compilation = CreateCompilation(
+                @"
 using System;
 using EntityFrameworkCore.Projectables;
 namespace Foo {
@@ -71,7 +78,8 @@ namespace Foo {
         public int Foo => 1;
     }
 }
-");
+"
+            );
             var result = RunGenerator(compilation);
 
             Assert.Empty(result.Diagnostics);
@@ -83,7 +91,8 @@ namespace Foo {
         [Fact]
         public Task MinimalProjectableComputedProperty()
         {
-            var compilation = CreateCompilation(@"
+            var compilation = CreateCompilation(
+                @"
 using System;
 using EntityFrameworkCore.Projectables;
 namespace Foo {
@@ -94,7 +103,8 @@ namespace Foo {
         public int Foo => Bar;
     }
 }
-");
+"
+            );
 
             var result = RunGenerator(compilation);
 
@@ -107,7 +117,8 @@ namespace Foo {
         [Fact]
         public Task SimpleProjectableComputedProperty()
         {
-            var compilation = CreateCompilation(@"
+            var compilation = CreateCompilation(
+                @"
 using System;
 using EntityFrameworkCore.Projectables;
 namespace Foo {
@@ -118,7 +129,8 @@ namespace Foo {
         public int Foo => Bar + 1;
     }
 }
-");
+"
+            );
 
             var result = RunGenerator(compilation);
 
@@ -131,7 +143,8 @@ namespace Foo {
         [Fact]
         public Task SimpleProjectableComputedPropertyWithSetter()
         {
-            var compilation = CreateCompilation(@"
+            var compilation = CreateCompilation(
+                @"
 using System;
 using EntityFrameworkCore.Projectables;
 namespace Foo {
@@ -146,7 +159,8 @@ namespace Foo {
         }
     }
 }
-");
+"
+            );
 
             var result = RunGenerator(compilation);
 
@@ -159,7 +173,8 @@ namespace Foo {
         [Fact]
         public Task SimpleProjectableComputedInNestedClassProperty()
         {
-            var compilation = CreateCompilation(@"
+            var compilation = CreateCompilation(
+                @"
 using System;
 using EntityFrameworkCore.Projectables;
 namespace Foo {
@@ -172,7 +187,8 @@ namespace Foo {
         }
     }
 }
-");
+"
+            );
 
             var result = RunGenerator(compilation);
 
@@ -185,7 +201,8 @@ namespace Foo {
         [Fact]
         public Task ProjectableComputedPropertyUsingThis()
         {
-            var compilation = CreateCompilation(@"
+            var compilation = CreateCompilation(
+                @"
 using System;
 using EntityFrameworkCore.Projectables;
 namespace Foo {
@@ -196,7 +213,8 @@ namespace Foo {
         public int Foo => this.Bar;
     }
 }
-");
+"
+            );
 
             var result = RunGenerator(compilation);
 
@@ -209,7 +227,8 @@ namespace Foo {
         [Fact]
         public Task ProjectableComputedPropertyMethod()
         {
-            var compilation = CreateCompilation(@"
+            var compilation = CreateCompilation(
+                @"
 using System;
 using EntityFrameworkCore.Projectables;
 namespace Foo {
@@ -220,7 +239,8 @@ namespace Foo {
         public int Foo => Bar();
     }
 }
-");
+"
+            );
 
             var result = RunGenerator(compilation);
 
@@ -234,7 +254,8 @@ namespace Foo {
         [Fact]
         public Task MoreComplexProjectableComputedProperty()
         {
-            var compilation = CreateCompilation(@"
+            var compilation = CreateCompilation(
+                @"
 using System;
 using EntityFrameworkCore.Projectables;
 namespace Foo {
@@ -245,7 +266,8 @@ namespace Foo {
         public int Foo => Bar + this.Bar + Bar;
     }
 }
-");
+"
+            );
 
             var result = RunGenerator(compilation);
 
@@ -258,7 +280,8 @@ namespace Foo {
         [Fact]
         public Task ArgumentlessProjectableComputedMethod()
         {
-            var compilation = CreateCompilation(@"
+            var compilation = CreateCompilation(
+                @"
 using System;
 using EntityFrameworkCore.Projectables;
 namespace Foo {
@@ -267,7 +290,8 @@ namespace Foo {
         public int Foo() => 0;
     }
 }
-");
+"
+            );
 
             var result = RunGenerator(compilation);
 
@@ -280,7 +304,8 @@ namespace Foo {
         [Fact]
         public Task ProjectableComputedMethodWithSingleArgument()
         {
-            var compilation = CreateCompilation(@"
+            var compilation = CreateCompilation(
+                @"
 using System;
 using EntityFrameworkCore.Projectables;
 namespace Foo {
@@ -289,7 +314,8 @@ namespace Foo {
         public int Foo(int i) => i;
     }
 }
-");
+"
+            );
 
             var result = RunGenerator(compilation);
 
@@ -302,7 +328,8 @@ namespace Foo {
         [Fact]
         public Task ProjectableComputedMethodWithMultipleArguments()
         {
-            var compilation = CreateCompilation(@"
+            var compilation = CreateCompilation(
+                @"
 using System;
 using EntityFrameworkCore.Projectables;
 namespace Foo {
@@ -311,7 +338,8 @@ namespace Foo {
         public int Foo(int a, string b, object d) => a;
     }
 }
-");
+"
+            );
 
             var result = RunGenerator(compilation);
 
@@ -324,7 +352,8 @@ namespace Foo {
         [Fact]
         public Task ProjectablePropertyToNavigationalProperty()
         {
-            var compilation = CreateCompilation(@"
+            var compilation = CreateCompilation(
+                @"
 using System;
 using System.Linq;
 using EntityFrameworkCore.Projectables;
@@ -338,7 +367,8 @@ namespace Foo {
         public D Foo => Dees.First();
     }
 }
-");
+"
+            );
 
             var result = RunGenerator(compilation);
 
@@ -351,7 +381,8 @@ namespace Foo {
         [Fact]
         public Task TypesInBodyGetsFullyQualified()
         {
-            var compilation = CreateCompilation(@"
+            var compilation = CreateCompilation(
+                @"
 using System;
 using System.Linq;
 using EntityFrameworkCore.Projectables;
@@ -365,7 +396,8 @@ namespace Foo {
         public int Foo => Dees.OfType<D>().Count();
     }
 }
-");
+"
+            );
 
             var result = RunGenerator(compilation);
 
@@ -378,7 +410,8 @@ namespace Foo {
         [Fact]
         public Task IsOperator()
         {
-            var compilation = CreateCompilation(@"
+            var compilation = CreateCompilation(
+                @"
 using System;
 using System.Linq;
 using EntityFrameworkCore.Projectables;
@@ -391,7 +424,8 @@ namespace Foo {
     class B : A {
     }
 }
-");
+"
+            );
 
             var result = RunGenerator(compilation);
 
@@ -404,7 +438,8 @@ namespace Foo {
         [Fact]
         public Task ProjectableExtensionMethod()
         {
-            var compilation = CreateCompilation(@"
+            var compilation = CreateCompilation(
+                @"
 using System;
 using System.Linq;
 using EntityFrameworkCore.Projectables;
@@ -416,7 +451,8 @@ namespace Foo {
         public static int Foo(this D d) => 1;
     }
 }
-");
+"
+            );
 
             var result = RunGenerator(compilation);
 
@@ -429,7 +465,8 @@ namespace Foo {
         [Fact]
         public Task ProjectableExtensionMethod2()
         {
-            var compilation = CreateCompilation(@"
+            var compilation = CreateCompilation(
+                @"
 using System;
 using System.Linq;
 using EntityFrameworkCore.Projectables;
@@ -439,7 +476,8 @@ namespace Foo {
         public static int Foo(this int i) => i;
     }
 }
-");
+"
+            );
 
             var result = RunGenerator(compilation);
 
@@ -453,7 +491,8 @@ namespace Foo {
         [Fact]
         public Task ProjectableExtensionMethod3()
         {
-            var compilation = CreateCompilation(@"
+            var compilation = CreateCompilation(
+                @"
 using System;
 using System.Linq;
 using EntityFrameworkCore.Projectables;
@@ -466,7 +505,8 @@ namespace Foo {
         public static int Foo2(this int i) => i.Foo1();
     }
 }
-");
+"
+            );
 
             var result = RunGenerator(compilation);
 
@@ -479,7 +519,8 @@ namespace Foo {
         [Fact]
         public Task ProjectableExtensionMethod4()
         {
-            var compilation = CreateCompilation(@"
+            var compilation = CreateCompilation(
+                @"
 using System;
 using System.Linq;
 using EntityFrameworkCore.Projectables;
@@ -489,7 +530,8 @@ namespace Foo {
         public static object Foo1(this object i) => i.Foo1();
     }
 }
-");
+"
+            );
 
             var result = RunGenerator(compilation);
 
@@ -502,7 +544,8 @@ namespace Foo {
         [Fact]
         public void BlockBodiedMethod_RaisesDiagnostics()
         {
-            var compilation = CreateCompilation(@"
+            var compilation = CreateCompilation(
+                @"
 using System;
 using EntityFrameworkCore.Projectables;
 namespace Foo {
@@ -514,7 +557,8 @@ namespace Foo {
         }
     }
 }
-");
+"
+            );
 
             var result = RunGenerator(compilation);
 
@@ -524,7 +568,8 @@ namespace Foo {
         [Fact]
         public Task NullableReferenceTypesAreBeingEliminated()
         {
-            var compilation = CreateCompilation(@"
+            var compilation = CreateCompilation(
+                @"
 using System;
 using System.Linq;
 using EntityFrameworkCore.Projectables;
@@ -537,7 +582,8 @@ namespace Foo {
         public static object? NextFoo(this object? unusedArgument, int? nullablePrimitiveArgument) => null;
     }
 }
-");
+"
+            );
 
             var result = RunGenerator(compilation);
 
@@ -551,7 +597,8 @@ namespace Foo {
         [Fact]
         public Task GenericNullableReferenceTypesAreBeingEliminated()
         {
-            var compilation = CreateCompilation(@"
+            var compilation = CreateCompilation(
+                @"
 using System;
 using System.Collections.Generic;
 using System.Linq;
@@ -565,7 +612,8 @@ namespace Foo {
         public static List<object?> NextFoo(this List<object?> input, List<int?> nullablePrimitiveArgument) => input;
     }
 }
-");
+"
+            );
 
             var result = RunGenerator(compilation);
 
@@ -578,7 +626,8 @@ namespace Foo {
         [Fact]
         public Task NullableReferenceTypeCastOperatorGetsEliminated()
         {
-            var compilation = CreateCompilation(@"
+            var compilation = CreateCompilation(
+                @"
 using System;
 using System.Collections.Generic;
 using System.Linq;
@@ -592,7 +641,8 @@ namespace Foo {
         public static string? NullableReferenceType(object? input) => (string?)input;
     }
 }
-");
+"
+            );
 
             var result = RunGenerator(compilation);
 
@@ -605,7 +655,8 @@ namespace Foo {
         [Fact]
         public Task NullableValueCastOperatorsPersist()
         {
-            var compilation = CreateCompilation(@"
+            var compilation = CreateCompilation(
+                @"
 using System;
 using System.Collections.Generic;
 using System.Linq;
@@ -619,7 +670,8 @@ namespace Foo {
         public static int? NullableValueType(object? input) => (int?)input;
     }
 }
-");
+"
+            );
 
             var result = RunGenerator(compilation);
 
@@ -633,7 +685,8 @@ namespace Foo {
         [Fact]
         public void NullableMemberBinding_WithoutSupport_IsBeingReported()
         {
-            var compilation = CreateCompilation(@"
+            var compilation = CreateCompilation(
+                @"
 using System;
 using System.Linq;
 using EntityFrameworkCore.Projectables;
@@ -644,7 +697,8 @@ namespace Foo {
         public static int? GetLength(this string input) => input?.Length;
     }
 }
-");
+"
+            );
             var result = RunGenerator(compilation);
 
             var diagnostic = Assert.Single(result.Diagnostics);
@@ -654,7 +708,8 @@ namespace Foo {
         [Fact]
         public void NullableMemberBinding_UndefinedSupport_IsBeingReported()
         {
-            var compilation = CreateCompilation(@"
+            var compilation = CreateCompilation(
+                @"
 using System;
 using System.Linq;
 using EntityFrameworkCore.Projectables;
@@ -665,7 +720,8 @@ namespace Foo {
         public static int? GetLength(this string input) => input?.Length;
     }
 }
-");
+"
+            );
             var result = RunGenerator(compilation);
 
             var diagnostic = Assert.Single(result.Diagnostics);
@@ -674,9 +730,11 @@ namespace Foo {
 
 
         [Fact]
-        public void MultiLevelNullableMemberBinding_UndefinedSupport_IsBeingReported()
+        public void
+            MultiLevelNullableMemberBinding_UndefinedSupport_IsBeingReported()
         {
-            var compilation = CreateCompilation(@"
+            var compilation = CreateCompilation(
+                @"
 using System;
 using System.Linq;
 using EntityFrameworkCore.Projectables;
@@ -706,18 +764,23 @@ namespace Foo {
             public bool IsSameCountry => Left?.Address?.Country == Right?.Address?.Country;
         }
 }
-");
+"
+            );
             var result = RunGenerator(compilation);
 
-            Assert.All(result.Diagnostics, diagnostic => {
-                Assert.Equal("EFP0002", diagnostic.Id);
-            });
+            Assert.All(
+                result.Diagnostics,
+                diagnostic => {
+                    Assert.Equal("EFP0002", diagnostic.Id);
+                }
+            );
         }
 
         [Fact]
         public Task NullableMemberBinding_WithIgnoreSupport_IsBeingRewritten()
         {
-            var compilation = CreateCompilation(@"
+            var compilation = CreateCompilation(
+                @"
 using System;
 using System.Linq;
 using EntityFrameworkCore.Projectables;
@@ -728,7 +791,8 @@ namespace Foo {
         public static int? GetLength(this string input) => input?.Length;
     }
 }
-");
+"
+            );
 
             var result = RunGenerator(compilation);
 
@@ -741,7 +805,8 @@ namespace Foo {
         [Fact]
         public Task NullableMemberBinding_WithRewriteSupport_IsBeingRewritten()
         {
-            var compilation = CreateCompilation(@"
+            var compilation = CreateCompilation(
+                @"
 using System;
 using System.Linq;
 using EntityFrameworkCore.Projectables;
@@ -752,7 +817,8 @@ namespace Foo {
         public static int? GetLength(this string input) => input?.Length;
     }
 }
-");
+"
+            );
 
             var result = RunGenerator(compilation);
 
@@ -763,9 +829,11 @@ namespace Foo {
         }
 
         [Fact]
-        public Task NullableSimpleElementBinding_WithIgnoreSupport_IsBeingRewritten()
+        public Task
+            NullableSimpleElementBinding_WithIgnoreSupport_IsBeingRewritten()
         {
-            var compilation = CreateCompilation(@"
+            var compilation = CreateCompilation(
+                @"
 using System;
 using System.Linq;
 using EntityFrameworkCore.Projectables;
@@ -776,7 +844,8 @@ namespace Foo {
         public static char? GetFirst(this string input) => input?[0];
     }
 }
-");
+"
+            );
 
             var result = RunGenerator(compilation);
 
@@ -785,11 +854,12 @@ namespace Foo {
 
             return Verifier.Verify(result.GeneratedTrees[0].ToString());
         }
-        
+
         [Fact]
         public Task StringInterpolationWithStaticCall_IsBeingRewritten()
         {
-            var compilation = CreateCompilation(@"
+            var compilation = CreateCompilation(
+                @"
 using System;
 using System.Linq;
 using EntityFrameworkCore.Projectables;
@@ -806,7 +876,8 @@ namespace Foo {
         public string Status => ValidationDate != null ? $""Validation date : ({ValidationDate.Value.ToDateString()})"" : """";
     }
 }
-");
+"
+            );
 
             var result = RunGenerator(compilation);
 
@@ -815,11 +886,12 @@ namespace Foo {
 
             return Verifier.Verify(result.GeneratedTrees[0].ToString());
         }
-        
+
         [Fact]
         public Task StringInterpolationWithParenthesis_NoParenthesisAdded()
         {
-            var compilation = CreateCompilation(@"
+            var compilation = CreateCompilation(
+                @"
 using System;
 using System.Linq;
 using EntityFrameworkCore.Projectables;
@@ -836,7 +908,8 @@ namespace Foo {
         public string Status => ValidationDate != null ? $""Validation date : ({(ValidationDate.Value.ToDateString())})"" : """";
     }
 }
-");
+"
+            );
 
             var result = RunGenerator(compilation);
 
@@ -847,9 +920,11 @@ namespace Foo {
         }
 
         [Fact]
-        public Task NullableSimpleElementBinding_WithRewriteSupport_IsBeingRewritten()
+        public Task
+            NullableSimpleElementBinding_WithRewriteSupport_IsBeingRewritten()
         {
-            var compilation = CreateCompilation(@"
+            var compilation = CreateCompilation(
+                @"
 using System;
 using System.Linq;
 using EntityFrameworkCore.Projectables;
@@ -860,7 +935,8 @@ namespace Foo {
         public static char? GetFirst(this string input) => input?[0];
     }
 }
-");
+"
+            );
 
             var result = RunGenerator(compilation);
 
@@ -873,7 +949,8 @@ namespace Foo {
         [Fact]
         public Task BooleanSimpleTernary_WithRewriteSupport_IsBeingRewritten()
         {
-            var compilation = CreateCompilation(@"
+            var compilation = CreateCompilation(
+                @"
 using System;
 using System.Linq;
 using EntityFrameworkCore.Projectables;
@@ -884,7 +961,8 @@ namespace Foo {
         public static bool Test(this object? x) => x?.Equals(4) == false;
     }
 }
-");
+"
+            );
 
             var result = RunGenerator(compilation);
 
@@ -899,7 +977,8 @@ namespace Foo {
         [Fact]
         public Task NullableElementBinding_WithIgnoreSupport_IsBeingRewritten()
         {
-            var compilation = CreateCompilation(@"
+            var compilation = CreateCompilation(
+                @"
 using System;
 using System.Linq;
 using EntityFrameworkCore.Projectables;
@@ -910,7 +989,8 @@ namespace Foo {
         public static string? GetFirst(this string input) => input?[0].ToString();
     }
 }
-");
+"
+            );
 
             var result = RunGenerator(compilation);
 
@@ -921,9 +1001,10 @@ namespace Foo {
         }
 
         [Fact]
-         public Task NullableElementBinding_WithRewriteSupport_IsBeingRewritten()
+        public Task NullableElementBinding_WithRewriteSupport_IsBeingRewritten()
         {
-            var compilation = CreateCompilation(@"
+            var compilation = CreateCompilation(
+                @"
 using System;
 using System.Linq;
 using EntityFrameworkCore.Projectables;
@@ -934,7 +1015,8 @@ namespace Foo {
         public static string? GetFirst(this string input) => input?[0].ToString();
     }
 }
-");
+"
+            );
 
             var result = RunGenerator(compilation);
 
@@ -945,9 +1027,11 @@ namespace Foo {
         }
 
         [Fact]
-        public Task NullableElementAndMemberBinding_WithIgnoreSupport_IsBeingRewritten()
+        public Task
+            NullableElementAndMemberBinding_WithIgnoreSupport_IsBeingRewritten()
         {
-            var compilation = CreateCompilation(@"
+            var compilation = CreateCompilation(
+                @"
 using System;
 using System.Linq;
 using System.Collections.Generic;
@@ -967,7 +1051,8 @@ namespace Foo {
             => entity?.RelatedEntities?[0];
     }
 }
-");
+"
+            );
 
             var result = RunGenerator(compilation);
 
@@ -978,9 +1063,11 @@ namespace Foo {
         }
 
         [Fact]
-        public Task NullableElementAndMemberBinding_WithRewriteSupport_IsBeingRewritten()
+        public Task
+            NullableElementAndMemberBinding_WithRewriteSupport_IsBeingRewritten()
         {
-            var compilation = CreateCompilation(@"
+            var compilation = CreateCompilation(
+                @"
 using System;
 using System.Linq;
 using System.Collections.Generic;
@@ -1000,7 +1087,8 @@ namespace Foo {
             => entity?.RelatedEntities?[0];
     }
 }
-");
+"
+            );
 
             var result = RunGenerator(compilation);
 
@@ -1013,7 +1101,8 @@ namespace Foo {
         [Fact]
         public Task NullableParameters_WithRewriteSupport_IsBeingRewritten()
         {
-            var compilation = CreateCompilation(@"
+            var compilation = CreateCompilation(
+                @"
 using System;
 using System.Linq;
 using System.Collections.Generic;
@@ -1033,7 +1122,8 @@ namespace Foo {
             => entity.FullName?.Substring(entity.FullName?.IndexOf(' ') ?? 0);
     }
 }
-");
+"
+            );
 
             var result = RunGenerator(compilation);
 
@@ -1046,7 +1136,8 @@ namespace Foo {
         [Fact]
         public Task GenericMethods_AreRewritten()
         {
-            var compilation = CreateCompilation(@"
+            var compilation = CreateCompilation(
+                @"
 using System;
 using System.Linq;
 using System.Collections.Generic;
@@ -1066,7 +1157,8 @@ namespace Foo {
             => value.ToString();
     }
 }
-");
+"
+            );
 
             var result = RunGenerator(compilation);
 
@@ -1079,7 +1171,8 @@ namespace Foo {
         [Fact]
         public Task GenericClassesWithContraints_AreRewritten()
         {
-            var compilation = CreateCompilation(@"
+            var compilation = CreateCompilation(
+                @"
 using System;
 using System.Linq;
 using System.Collections.Generic;
@@ -1102,7 +1195,8 @@ namespace Foo {
         public string FullName => $""{FirstName} {LastName} {SomeSubobject.SomeProp}"";
     }
 }
-");
+"
+            );
             var result = RunGenerator(compilation);
 
             Assert.Empty(result.Diagnostics);
@@ -1114,7 +1208,8 @@ namespace Foo {
         [Fact]
         public Task GenericClassesWithTypeContraints_AreRewritten()
         {
-            var compilation = CreateCompilation(@"
+            var compilation = CreateCompilation(
+                @"
 using System;
 using System.Linq;
 using System.Collections.Generic;
@@ -1132,7 +1227,8 @@ namespace Foo {
         public string FullName => $""{FirstName} {LastName} {SomeSubobject}"";
     }
 }
-");
+"
+            );
 
             var result = RunGenerator(compilation);
 
@@ -1145,7 +1241,8 @@ namespace Foo {
         [Fact]
         public Task DeclarationTypeNamesAreGettingFullyQualified()
         {
-            var compilation = CreateCompilation(@"
+            var compilation = CreateCompilation(
+                @"
 using System;
 using System.Linq;
 using System.Collections.Generic;
@@ -1165,7 +1262,8 @@ namespace Foo {
         }
     }
 }
-");
+"
+            );
 
             var result = RunGenerator(compilation);
 
@@ -1178,7 +1276,8 @@ namespace Foo {
         [Fact]
         public Task MixPrimaryConstructorAndProperties()
         {
-            var compilation = CreateCompilation(@"
+            var compilation = CreateCompilation(
+                @"
 using System;
 using System.Linq;
 using System.Collections.Generic;
@@ -1200,7 +1299,8 @@ namespace Foo {
         }
     }
 }
-");
+"
+            );
 
             var result = RunGenerator(compilation);
 
@@ -1213,7 +1313,8 @@ namespace Foo {
         [Fact]
         public Task InheritedMembers()
         {
-            var compilation = CreateCompilation(@"
+            var compilation = CreateCompilation(
+                @"
 using System;
 using System.Linq;
 using System.Collections.Generic;
@@ -1229,7 +1330,8 @@ namespace Foo {
         public int ProjectedId => Id;
     }
 }
-");
+"
+            );
 
             var result = RunGenerator(compilation);
 
@@ -1242,7 +1344,8 @@ namespace Foo {
         [Fact]
         public Task StaticMembers()
         {
-            var compilation = CreateCompilation(@"
+            var compilation = CreateCompilation(
+                @"
 using System;
 using System.Linq;
 using System.Collections.Generic;
@@ -1258,7 +1361,8 @@ namespace Foo {
         public int IdWithBar() => Id + Bar;
     }
 }
-");
+"
+            );
 
             var result = RunGenerator(compilation);
 
@@ -1271,7 +1375,8 @@ namespace Foo {
         [Fact]
         public Task StaticMembers2()
         {
-            var compilation = CreateCompilation(@"
+            var compilation = CreateCompilation(
+                @"
 using System;
 using System.Linq;
 using System.Collections.Generic;
@@ -1289,7 +1394,8 @@ namespace Foo {
         public int IdWithBar() => Id + Constants.Bar;
     }
 }
-");
+"
+            );
 
             var result = RunGenerator(compilation);
 
@@ -1303,7 +1409,8 @@ namespace Foo {
         [Fact]
         public Task StaticMethodWithNoParameters()
         {
-            var compilation = CreateCompilation(@"
+            var compilation = CreateCompilation(
+                @"
 using System;
 using System.Linq;
 using System.Collections.Generic;
@@ -1313,7 +1420,8 @@ public static class Foo {
     [Projectable]
     public static int Zero() => 0;
 }
-");
+"
+            );
 
             var result = RunGenerator(compilation);
 
@@ -1326,7 +1434,8 @@ public static class Foo {
         [Fact]
         public Task StaticMethodWithParameters()
         {
-            var compilation = CreateCompilation(@"
+            var compilation = CreateCompilation(
+                @"
 using System;
 using System.Linq;
 using System.Collections.Generic;
@@ -1336,7 +1445,8 @@ public static class Foo {
     [Projectable]
     public static int Zero(int x) => 0;
 }
-");
+"
+            );
 
             var result = RunGenerator(compilation);
 
@@ -1349,7 +1459,8 @@ public static class Foo {
         [Fact]
         public Task ConstMember()
         {
-            var compilation = CreateCompilation(@"
+            var compilation = CreateCompilation(
+                @"
 using System;
 using System.Linq;
 using System.Collections.Generic;
@@ -1365,7 +1476,8 @@ namespace Foo {
         public int IdWithBar() => Id + Bar;
     }
 }
-");
+"
+            );
 
             var result = RunGenerator(compilation);
 
@@ -1378,7 +1490,8 @@ namespace Foo {
         [Fact]
         public Task ConstMember2()
         {
-            var compilation = CreateCompilation(@"
+            var compilation = CreateCompilation(
+                @"
 using System;
 using System.Linq;
 using System.Collections.Generic;
@@ -1396,7 +1509,8 @@ namespace Foo {
         public int IdWithBar() => Id + Constants.Bar;
     }
 }
-");
+"
+            );
 
             var result = RunGenerator(compilation);
 
@@ -1409,7 +1523,8 @@ namespace Foo {
         [Fact]
         public Task ConstMember3()
         {
-            var compilation = CreateCompilation(@"
+            var compilation = CreateCompilation(
+                @"
 using System;
 using System.Linq;
 using System.Collections.Generic;
@@ -1425,7 +1540,8 @@ namespace Foo {
         public int IdWithBar() => Id + Foo.Bar;
     }
 }
-");
+"
+            );
 
             var result = RunGenerator(compilation);
 
@@ -1438,7 +1554,8 @@ namespace Foo {
         [Fact]
         public Task RelationalProperty()
         {
-            var compilation = CreateCompilation(@"
+            var compilation = CreateCompilation(
+                @"
 using System;
 using System.Linq;
 using System.Collections.Generic;
@@ -1456,7 +1573,8 @@ namespace Foos {
         public int FooId => Foo.Id;
     }
 }
-");
+"
+            );
 
             var result = RunGenerator(compilation);
 
@@ -1469,7 +1587,8 @@ namespace Foos {
         [Fact]
         public Task EnumAccessor()
         {
-            var compilation = CreateCompilation(@"
+            var compilation = CreateCompilation(
+                @"
 using EntityFrameworkCore.Projectables;
 
 public enum SomeFlag
@@ -1482,7 +1601,8 @@ public static class SomeExtensions
     [Projectable]
     public static bool Test(this SomeFlag f) => f == SomeFlag.Foo;
 }
-");
+"
+            );
 
             var result = RunGenerator(compilation);
 
@@ -1495,7 +1615,8 @@ public static class SomeExtensions
         [Fact]
         public Task Cast()
         {
-            var compilation = CreateCompilation(@"
+            var compilation = CreateCompilation(
+                @"
 using EntityFrameworkCore.Projectables;
 
 namespace Projectables.Repro;
@@ -1515,7 +1636,8 @@ public static class SomeExtensions
     [Projectable]
     public static string AsSomeResult(this SomeEntity e) => ((SuperEntity)e).Superpower;
 }
-");
+"
+            );
 
             var result = RunGenerator(compilation);
 
@@ -1528,7 +1650,8 @@ public static class SomeExtensions
         [Fact]
         public Task NavigationProperties()
         {
-            var compilation = CreateCompilation(@"
+            var compilation = CreateCompilation(
+                @"
 using EntityFrameworkCore.Projectables;
 using System.Collections.Generic;
 
@@ -1546,7 +1669,8 @@ public class SomeEntity
     public ICollection<SomeEntity> RootChildren =>
         Parent != null ? Parent.RootChildren : Children;
 }
-");
+"
+            );
 
             var result = RunGenerator(compilation);
 
@@ -1559,7 +1683,8 @@ public class SomeEntity
         [Fact]
         public Task FooOrBar()
         {
-            var compilation = CreateCompilation(@"
+            var compilation = CreateCompilation(
+                @"
 using EntityFrameworkCore.Projectables;
 using System.Collections.Generic;
 
@@ -1577,7 +1702,8 @@ public class SomeEntity
     public string FooOrBar =>
         Foo != null ? Foo : Bar;
 }
-");
+"
+            );
 
             var result = RunGenerator(compilation);
 
@@ -1590,7 +1716,8 @@ public class SomeEntity
         [Fact]
         public Task BaseMemberExplicitReference()
         {
-            var compilation = CreateCompilation(@"
+            var compilation = CreateCompilation(
+                @"
 using EntityFrameworkCore.Projectables;
 
 namespace Projectables.Repro;
@@ -1605,7 +1732,8 @@ class Derived : Base
     [Projectable]
     public string Bar => base.Foo;
 }
-");
+"
+            );
 
             var result = RunGenerator(compilation);
 
@@ -1618,7 +1746,8 @@ class Derived : Base
         [Fact]
         public Task BaseMemberImplicitReference()
         {
-            var compilation = CreateCompilation(@"
+            var compilation = CreateCompilation(
+                @"
 using EntityFrameworkCore.Projectables;
 
 namespace Projectables.Repro;
@@ -1633,7 +1762,8 @@ class Derived : Base
     [Projectable]
     public string Bar => Foo;
 }
-");
+"
+            );
 
             var result = RunGenerator(compilation);
 
@@ -1646,7 +1776,8 @@ class Derived : Base
         [Fact]
         public Task BaseMethodExplicitReference()
         {
-            var compilation = CreateCompilation(@"
+            var compilation = CreateCompilation(
+                @"
 using EntityFrameworkCore.Projectables;
 
 namespace Projectables.Repro;
@@ -1661,7 +1792,8 @@ class Derived : Base
     [Projectable]
     public string Bar => base.Foo();
 }
-");
+"
+            );
 
             var result = RunGenerator(compilation);
 
@@ -1674,7 +1806,8 @@ class Derived : Base
         [Fact]
         public Task BaseMethorImplicitReference()
         {
-            var compilation = CreateCompilation(@"
+            var compilation = CreateCompilation(
+                @"
 using EntityFrameworkCore.Projectables;
 
 namespace Projectables.Repro;
@@ -1689,7 +1822,8 @@ class Derived : Base
     [Projectable]
     public string Bar => Foo();
 }
-");
+"
+            );
 
             var result = RunGenerator(compilation);
 
@@ -1702,14 +1836,16 @@ class Derived : Base
         [Fact]
         public Task DefaultValuesGetRemoved()
         {
-            var compilation = CreateCompilation(@"
+            var compilation = CreateCompilation(
+                @"
 using EntityFrameworkCore.Projectables;
 
 class Foo {
     [Projectable]
     public int Calculate(int i = 0) => i;
 }
-");
+"
+            );
 
             var result = RunGenerator(compilation);
 
@@ -1722,14 +1858,16 @@ class Foo {
         [Fact]
         public Task ParamsModifiedGetsRemoved()
         {
-            var compilation = CreateCompilation(@"
+            var compilation = CreateCompilation(
+                @"
 using EntityFrameworkCore.Projectables;
 
 class Foo {
     [Projectable]
     public int First(params int[] all) => all[0];
 }
-");
+"
+            );
 
             var result = RunGenerator(compilation);
 
@@ -1740,9 +1878,146 @@ class Foo {
         }
 
         [Fact]
+        public Task SpreadObjectTest()
+        {
+            var compilation = CreateCompilation(
+                @"
+using System;
+using System.Linq;
+using System.Collections.Generic;
+using System.ComponentModel.DataAnnotations.Schema;
+using EntityFrameworkCore.Projectables;
+
+        public class Model
+        {
+            public string Name { get; set; }
+        }
+        
+         public class ModelAdded : Model
+        {
+            public required int Id { get; set; }
+        }
+        
+       
+        public class DbObject
+        {
+            public required int Id { get; set; }
+            public Model Model { get; set; }
+        
+            [Projectable]
+            public Model ToModel() => new Model() {
+                Name = Model.Name
+            };
+        [Projectable]
+            public ModelAdded ToModelAdded() => Projectable.Extend(
+		ToModel(),
+		new ModelAdded() { Id = Id }
+	);
+        }
+      
+"
+            );
+
+            var result = RunGenerator(compilation);
+
+            Assert.Empty(result.Diagnostics);
+
+            return Verifier.Verify(result.GeneratedTrees[0].ToString());
+
+        }
+
+        [Fact]
+        public Task AdvancedExtend()
+        {
+            var compilation = CreateCompilation(
+                @"
+using System;
+using System.Linq;
+using System.Collections.Generic;
+using System.ComponentModel.DataAnnotations.Schema;
+using EntityFrameworkCore.Projectables;
+
+public class Item
+        {
+            public required int Id { get; set; }
+            public string Name { get; set; }
+            public List<string> Labels { get; set; }
+        }
+        
+        public class SupplierProduct : Item
+        {
+            public string SupplierName { get; set; }
+            public required int SupplierId { get; set; }
+            public List<string> Tags { get; set; }
+        
+        }
+        
+        public class DbItem
+        {
+            public required int Id { get; set; }
+            public string Name { get; set; }
+
+
+            public string[] db_Labels { get; set; } = [];
+        
+            [Projectable]
+            [NotMapped]
+            public List<string> Labels
+            {
+                get => db_Labels.ToList();
+                set => db_Labels = value.ToArray();
+            }
+        
+            [Projectable]
+            public Item ToModel() => new Item() {
+                Id = Id, Name = Name, Labels = Labels,
+            };
+        
+        }
+        
+        public class DbSupplierProduct : DbItem
+        {
+            public string SupplierName { get; set; }
+            public required int SupplierId { get; set; }
+
+
+            public string[] db_Tags { get; set; } = [];
+        
+            [Projectable]
+            [NotMapped]
+            public List<string> Tags
+            {
+                get => db_Tags.ToList();
+                set => db_Tags = value.ToArray();
+            }
+        
+            [Projectable]
+            public new SupplierProduct ToModel() => Projectable.Extend(
+                base.ToModel(),
+                new SupplierProduct {
+                    Id = Id,
+                    SupplierName = SupplierName,
+                    SupplierId = SupplierId,
+                    Tags = Tags
+                }
+            );
+        
+        }
+"
+            );
+
+            var result = RunGenerator(compilation);
+
+            Assert.Empty(result.Diagnostics);
+
+            return Verifier.Verify(result.GeneratedTrees[3].ToString());
+        }
+
+        [Fact]
         public Task RequiredNamespace()
         {
-            var compilation = CreateCompilation(@"
+            var compilation = CreateCompilation(
+                @"
 using EntityFrameworkCore.Projectables;
 
 namespace One {
@@ -1757,7 +2032,8 @@ namespace One.Two {
         public int Method() => 1.AddOne();
     }   
 }
-");
+"
+            );
 
             var result = RunGenerator(compilation);
 
@@ -1772,7 +2048,8 @@ namespace One.Two {
         {
             // issue: https://github.com/koenbeuk/EntityFrameworkCore.Projectables/issues/48
 
-            var compilation = CreateCompilation(@"
+            var compilation = CreateCompilation(
+                @"
 using EntityFrameworkCore.Projectables;
 
 class Foo {
@@ -1781,7 +2058,41 @@ class Foo {
     [Projectable(NullConditionalRewriteSupport = NullConditionalRewriteSupport.Rewrite)]
     public static int SomeNumber(Foo fancyClass) => fancyClass?.FancyNumber ?? 3;
 }
-");
+"
+            );
+
+            var result = RunGenerator(compilation);
+
+            Assert.Empty(result.Diagnostics);
+            Assert.Single(result.GeneratedTrees);
+
+            return Verifier.Verify(result.GeneratedTrees[0].ToString());
+        }
+
+        [Fact]
+        public Task Object()
+        {
+            var compilation = CreateCompilation(
+                @"
+using System;
+using System.Linq;
+using System.Collections.Generic;
+using EntityFrameworkCore.Projectables;
+
+namespace Foo {
+    public static class Constants {
+        public static readonly int Bar  = 1;
+    }
+
+    public class Foo {
+        public int Id { get; set; }
+  
+        [Projectable]
+        public int IdWithBar() => new Foo { Id = Id }.Id;
+    }
+}
+"
+            );
 
             var result = RunGenerator(compilation);
 
@@ -1794,7 +2105,8 @@ class Foo {
         [Fact]
         public Task SwitchExpression()
         {
-            var compilation = CreateCompilation(@"
+            var compilation = CreateCompilation(
+                @"
 using EntityFrameworkCore.Projectables;
 
 class Foo {
@@ -1808,7 +2120,8 @@ class Foo {
             _ => 1000,
         };
     }
-");
+"
+            );
 
             var result = RunGenerator(compilation);
 
@@ -1823,14 +2136,16 @@ class Foo {
         {
             // issue: https://github.com/koenbeuk/EntityFrameworkCore.Projectables/issues/48
 
-            var compilation = CreateCompilation(@"
+            var compilation = CreateCompilation(
+                @"
 using EntityFrameworkCore.Projectables;
 
 class EntiyBase<TId> {
     [Projectable]
     public static TId GetId() => default;
 }
-");
+"
+            );
 
             var result = RunGenerator(compilation);
 
@@ -1845,7 +2160,8 @@ class EntiyBase<TId> {
         {
             // issue: https://github.com/koenbeuk/EntityFrameworkCore.Projectables/issues/48
 
-            var compilation = CreateCompilation(@"
+            var compilation = CreateCompilation(
+                @"
 using System;
 using EntityFrameworkCore.Projectables;
 
@@ -1853,7 +2169,8 @@ class EntityBase<TId> where TId : ICloneable, new() {
     [Projectable]
     public static TId GetId() => default;
 }
-");
+"
+            );
 
             var result = RunGenerator(compilation);
 
@@ -1865,15 +2182,27 @@ class EntityBase<TId> where TId : ICloneable, new() {
 
         #region Helpers
 
-        Compilation CreateCompilation([StringSyntax("c#")]string source, bool expectedToCompile = true)
+        Compilation CreateCompilation(
+            [StringSyntax("c#")] string source,
+            bool expectedToCompile = true
+        )
         {
-            var references = Basic.Reference.Assemblies.Net80.References.All.ToList();
-            references.Add(MetadataReference.CreateFromFile(typeof(ProjectableAttribute).Assembly.Location));
+            var references =
+                Basic.Reference.Assemblies.Net80.References.All.ToList();
+            references.Add(
+                MetadataReference.CreateFromFile(
+                    typeof(ProjectableAttribute).Assembly.Location
+                )
+            );
 
-            var compilation = CSharpCompilation.Create("compilation",
+            var compilation = CSharpCompilation.Create(
+                "compilation",
                 new[] { CSharpSyntaxTree.ParseText(source) },
                 references,
-                new CSharpCompilationOptions(OutputKind.DynamicallyLinkedLibrary));
+                new CSharpCompilationOptions(
+                    OutputKind.DynamicallyLinkedLibrary
+                )
+            );
 
 #if DEBUG
 
@@ -1883,14 +2212,20 @@ class EntityBase<TId> where TId : ICloneable, new() {
 
                 if (!compilationDiagnostics.IsEmpty)
                 {
-                    _testOutputHelper.WriteLine($"Original compilation diagnostics produced:");
+                    _testOutputHelper.WriteLine(
+                        $"Original compilation diagnostics produced:"
+                    );
 
                     foreach (var diagnostic in compilationDiagnostics)
                     {
-                        _testOutputHelper.WriteLine($" > " + diagnostic.ToString());
+                        _testOutputHelper.WriteLine(
+                            $" > " + diagnostic.ToString()
+                        );
                     }
 
-                    if (compilationDiagnostics.Any(x => x.Severity == DiagnosticSeverity.Error))
+                    if (compilationDiagnostics.Any(
+                            x => x.Severity == DiagnosticSeverity.Error
+                        ))
                     {
                         Debug.Fail("Compilation diagnostics produced");
                     }
@@ -1903,7 +2238,9 @@ class EntityBase<TId> where TId : ICloneable, new() {
 
         private GeneratorDriverRunResult RunGenerator(Compilation compilation)
         {
-            _testOutputHelper.WriteLine("Running generator and updating compilation...");
+            _testOutputHelper.WriteLine(
+                "Running generator and updating compilation..."
+            );
 
             var subject = new ProjectionExpressionGenerator();
             var driver = CSharpGeneratorDriver
@@ -1928,7 +2265,9 @@ class EntityBase<TId> where TId : ICloneable, new() {
 
             foreach (var newSyntaxTree in result.GeneratedTrees)
             {
-                _testOutputHelper.WriteLine($"Produced syntax tree with path produced: {newSyntaxTree.FilePath}");
+                _testOutputHelper.WriteLine(
+                    $"Produced syntax tree with path produced: {newSyntaxTree.FilePath}"
+                );
                 _testOutputHelper.WriteLine(newSyntaxTree.GetText().ToString());
             }
 
@@ -1936,5 +2275,6 @@ class EntityBase<TId> where TId : ICloneable, new() {
         }
 
         #endregion
+
     }
 }

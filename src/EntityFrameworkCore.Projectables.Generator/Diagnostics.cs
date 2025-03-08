@@ -25,5 +25,12 @@ namespace EntityFrameworkCore.Projectables.Generator
             DiagnosticSeverity.Error,
             isEnabledByDefault: true);
 
+        public static readonly DiagnosticDescriptor ExtendUnsupported = new DiagnosticDescriptor(
+            id: "EFP0003",
+            title: "Method or property is not using a plain new {} object syntax",
+            messageFormat: "'{0}' is invalid because {1}",
+            category: "Design",
+            DiagnosticSeverity.Error,
+            isEnabledByDefault: true);
     }
 }

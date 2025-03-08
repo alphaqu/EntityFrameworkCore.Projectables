@@ -12,22 +12,54 @@ namespace EntityFrameworkCore.Projectables.Tests.Services
 {
     public class ProjectableExpressionReplacerTests
     {
-        public class ProjectableExpressionResolverStub : IProjectionExpressionResolver
+        public class
+            ProjectableExpressionResolverStub : IProjectionExpressionResolver
         {
             readonly Func<MemberInfo, LambdaExpression> _implementation;
 
-            public ProjectableExpressionResolverStub(Func<MemberInfo, LambdaExpression> implementation)
+            public ProjectableExpressionResolverStub(
+                Func<MemberInfo, LambdaExpression> implementation
+            )
             {
                 _implementation = implementation;
             }
 
-            public LambdaExpression FindGeneratedExpression(MemberInfo projectableMemberInfo) => _implementation(projectableMemberInfo);
+            public LambdaExpression FindGeneratedExpression(
+                MemberInfo projectableMemberInfo
+            ) => _implementation(projectableMemberInfo);
         }
 
-        class Entity
+        class Thinger
+        {
+            public required string BaseField { get; set; }
+        }
+
+        class Thinger2 : Thinger
+        {
+            public required string NewField { get; set; }
+
+        }
+
+        class BaseEntity
+        {
+            public int BaseId { get; set; }
+
+            [Projectable]
+            public Thinger Thinger() => new Thinger { BaseField = $"HEllo {BaseId}"  };
+        }
+
+
+        class Entity : BaseEntity
         {
             public int Id { get; set; }
 
+            [Projectable]
+            public new Thinger2 Thinger() => Projectable.Extend(base.Thinger(), new Thinger2 {
+                    BaseField = null!,
+                    NewField = "Better Field!",
+                }
+            );
+            
             [Projectable]
             public int SimpleProperty => 0;
 
@@ -47,7 +79,8 @@ namespace EntityFrameworkCore.Projectables.Tests.Services
             public static int SimpleStaticMethod() => 0;
 
             [Projectable]
-            public static int SimpleStaticMethodWithArguments(int a, Entity b) => 0;
+            public static int
+                SimpleStaticMethodWithArguments(int a, Entity b) => 0;
         }
 
         [Fact]
@@ -56,9 +89,7 @@ namespace EntityFrameworkCore.Projectables.Tests.Services
             Expression<Func<Entity, int>> input = x => x.SimpleProperty;
             Expression<Func<Entity, int>> expected = x => 0;
 
-            var resolver = new ProjectableExpressionResolverStub(
-                x => expected
-            );
+            var resolver = new ProjectableExpressionResolverStub(x => expected);
             var subject = new ProjectableExpressionReplacer(resolver);
 
             var actual = subject.Replace(input);
@@ -72,9 +103,7 @@ namespace EntityFrameworkCore.Projectables.Tests.Services
             Expression<Func<Entity, int>> input = x => x.SimpleMethod();
             Expression<Func<Entity, int>> expected = x => 0;
 
-            var resolver = new ProjectableExpressionResolverStub(
-                x => expected
-            );
+            var resolver = new ProjectableExpressionResolverStub(x => expected);
             var subject = new ProjectableExpressionReplacer(resolver);
 
             var actual = subject.Replace(input);
@@ -85,12 +114,11 @@ namespace EntityFrameworkCore.Projectables.Tests.Services
         [Fact]
         public void VisitMember_SimpleMethodWithArguments()
         {
-            Expression<Func<Entity, int>> input = x => x.SimpleMethodWithArguments(1, true);
+            Expression<Func<Entity, int>> input = x =>
+                x.SimpleMethodWithArguments(1, true);
             Expression<Func<Entity, int>> expected = x => 0;
 
-            var resolver = new ProjectableExpressionResolverStub(
-                x => expected
-            );
+            var resolver = new ProjectableExpressionResolverStub(x => expected);
             var subject = new ProjectableExpressionReplacer(resolver);
 
             var actual = subject.Replace(input);
@@ -101,12 +129,11 @@ namespace EntityFrameworkCore.Projectables.Tests.Services
         [Fact]
         public void VisitMember_SimpleStatefullProperty()
         {
-            Expression<Func<Entity, int>> input = x => x.SimpleStatefullProperty;
+            Expression<Func<Entity, int>>
+                input = x => x.SimpleStatefullProperty;
             Expression<Func<Entity, int>> expected = x => x.Id;
 
-            var resolver = new ProjectableExpressionResolverStub(
-                x => expected
-            );
+            var resolver = new ProjectableExpressionResolverStub(x => expected);
             var subject = new ProjectableExpressionReplacer(resolver);
 
             var actual = subject.Replace(input);
@@ -117,12 +144,11 @@ namespace EntityFrameworkCore.Projectables.Tests.Services
         [Fact]
         public void VisitMember_SimpleStatefullMethod()
         {
-            Expression<Func<Entity, int>> input = x => x.SimpleStatefullMethod();
+            Expression<Func<Entity, int>>
+                input = x => x.SimpleStatefullMethod();
             Expression<Func<Entity, int>> expected = x => x.Id;
 
-            var resolver = new ProjectableExpressionResolverStub(
-                x => expected
-            );
+            var resolver = new ProjectableExpressionResolverStub(x => expected);
             var subject = new ProjectableExpressionReplacer(resolver);
 
             var actual = subject.Replace(input);
@@ -133,12 +159,11 @@ namespace EntityFrameworkCore.Projectables.Tests.Services
         [Fact]
         public void VisitMember_SimpleStaticMethod()
         {
-            Expression<Func<Entity, int>> input = x => Entity.SimpleStaticMethod();
+            Expression<Func<Entity, int>> input = x =>
+                Entity.SimpleStaticMethod();
             Expression<Func<Entity, int>> expected = x => 0;
 
-            var resolver = new ProjectableExpressionResolverStub(
-                x => expected
-            );
+            var resolver = new ProjectableExpressionResolverStub(x => expected);
             var subject = new ProjectableExpressionReplacer(resolver);
 
             var actual = subject.Replace(input);
@@ -149,17 +174,17 @@ namespace EntityFrameworkCore.Projectables.Tests.Services
         [Fact]
         public void VisitMember_SimpleStaticMethodWithArguments()
         {
-            Expression<Func<Entity, int>> input = x => Entity.SimpleStaticMethodWithArguments(0, x);
+            Expression<Func<Entity, int>> input = x =>
+                Entity.SimpleStaticMethodWithArguments(0, x);
             Expression<Func<Entity, int>> expected = x => 0;
 
-            var resolver = new ProjectableExpressionResolverStub(
-                x => expected
-            );
+            var resolver = new ProjectableExpressionResolverStub(x => expected);
             var subject = new ProjectableExpressionReplacer(resolver);
 
             var actual = subject.Replace(input);
 
             Assert.Equal(expected.ToString(), actual.ToString());
         }
+        
     }
 }

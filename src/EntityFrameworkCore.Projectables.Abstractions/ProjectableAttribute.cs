@@ -14,7 +14,7 @@ namespace EntityFrameworkCore.Projectables
     public sealed class ProjectableAttribute : Attribute
     {
         /// <summary>
-        /// Get or set how null-conditional operators are handeled
+        /// Get or set how null-conditional operators are handled
         /// </summary>
         public NullConditionalRewriteSupport NullConditionalRewriteSupport { get; set; }
 

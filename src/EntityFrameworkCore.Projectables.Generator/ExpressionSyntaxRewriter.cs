@@ -13,13 +13,20 @@ namespace EntityFrameworkCore.Projectables.Generator
 
     public class ExpressionSyntaxRewriter : CSharpSyntaxRewriter
     {
-        readonly INamedTypeSymbol _targetTypeSymbol;
+        INamedTypeSymbol _targetTypeSymbol;
         readonly SemanticModel _semanticModel;
         readonly NullConditionalRewriteSupport _nullConditionalRewriteSupport;
         readonly SourceProductionContext _context;
-        readonly Stack<ExpressionSyntax> _conditionalAccessExpressionsStack = new();
-        
-        public ExpressionSyntaxRewriter(INamedTypeSymbol targetTypeSymbol, NullConditionalRewriteSupport nullConditionalRewriteSupport, SemanticModel semanticModel, SourceProductionContext context)
+
+        readonly Stack<ExpressionSyntax> _conditionalAccessExpressionsStack =
+            new();
+
+        public ExpressionSyntaxRewriter(
+            INamedTypeSymbol targetTypeSymbol,
+            NullConditionalRewriteSupport nullConditionalRewriteSupport,
+            SemanticModel semanticModel,
+            SourceProductionContext context
+        )
         {
             _targetTypeSymbol = targetTypeSymbol;
             _nullConditionalRewriteSupport = nullConditionalRewriteSupport;
@@ -27,50 +34,136 @@ namespace EntityFrameworkCore.Projectables.Generator
             _context = context;
         }
 
+        private void ScopeTargetType(INamedTypeSymbol newTarget, Action action)
+        {
+            var oldTargetSymbol = _targetTypeSymbol;
+            _targetTypeSymbol = newTarget;
+            action();
+            _targetTypeSymbol = oldTargetSymbol;
+        }
+
         private SyntaxNode? VisitThisBaseExpression(CSharpSyntaxNode node)
         {
             // Swap out the use of this and base to @this and keep leading and trailing trivias
-            return SyntaxFactory.IdentifierName("@this")
+            return SyntaxFactory
+                .IdentifierName("@this")
                 .WithLeadingTrivia(node.GetLeadingTrivia())
                 .WithTrailingTrivia(node.GetTrailingTrivia());
         }
-        
-        public override SyntaxNode? VisitMemberAccessExpression(MemberAccessExpressionSyntax node)
+
+        public override SyntaxNode? VisitMemberAccessExpression(
+            MemberAccessExpressionSyntax node
+        )
         {
-            var expressionSyntax = (ExpressionSyntax?)Visit(node.Expression) ?? throw new ArgumentNullException("expression");
-        
+            var expressionSyntax = (ExpressionSyntax?)Visit(node.Expression) ??
+                                   throw new ArgumentNullException(
+                                       "expression"
+                                   );
+
             var syntaxNode = Visit(node.Name);
-        
+
             // Prevents invalid cast when visiting a QualifiedNameSyntax
             if (syntaxNode is QualifiedNameSyntax qst)
             {
                 syntaxNode = qst.Right;
             }
-            
-            return node.Update(expressionSyntax, VisitToken(node.OperatorToken), (SimpleNameSyntax)syntaxNode);
+
+            return node.Update(
+                expressionSyntax,
+                VisitToken(node.OperatorToken),
+                (SimpleNameSyntax)syntaxNode
+            );
         }
 
-        public override SyntaxNode? VisitInvocationExpression(InvocationExpressionSyntax node)
+        public override SyntaxNode? VisitInvocationExpression(
+            InvocationExpressionSyntax node
+        )
         {
+            SyntaxNode? ReportError(string reason)
+            {
+                _context.ReportDiagnostic(
+                    Diagnostic.Create(
+                        Diagnostics.ExtendUnsupported,
+                        node.GetLocation(),
+                        node,
+                        reason
+                    )
+                );
+                return node;
+            }
+
+
             // Fully qualify extension method calls
-            if (node.Expression is MemberAccessExpressionSyntax memberAccessExpressionSyntax)
+            if (node.Expression is MemberAccessExpressionSyntax
+                memberAccessExpressionSyntax)
             {
                 var symbol = _semanticModel.GetSymbolInfo(node).Symbol;
-                if (symbol is IMethodSymbol { IsExtensionMethod: true } methodSymbol)
+
+
+                if (symbol is IMethodSymbol methodSymbol)
                 {
-                    return SyntaxFactory.InvocationExpression(
-                        SyntaxFactory.MemberAccessExpression(
-                            SyntaxKind.SimpleMemberAccessExpression,
-                            SyntaxFactory.ParseName(methodSymbol.ContainingType.ToDisplayString(NullableFlowState.None, SymbolDisplayFormat.FullyQualifiedFormat)),
-                            memberAccessExpressionSyntax.Name
-                        ),
-                        node.ArgumentList.WithArguments(
-                            ((ArgumentListSyntax)VisitArgumentList(node.ArgumentList)!).Arguments.Insert(0, SyntaxFactory.Argument(
-                                    (ExpressionSyntax)Visit(memberAccessExpressionSyntax.Expression)
+
+                    if (methodSymbol.IsExtensionMethod)
+                    {
+                        return SyntaxFactory.InvocationExpression(
+                            SyntaxFactory.MemberAccessExpression(
+                                SyntaxKind.SimpleMemberAccessExpression,
+                                SyntaxFactory.ParseName(
+                                    methodSymbol.ContainingType.ToDisplayString(
+                                        NullableFlowState.None,
+                                        SymbolDisplayFormat.FullyQualifiedFormat
+                                    )
+                                ),
+                                memberAccessExpressionSyntax.Name
+                            ),
+                            node.ArgumentList.WithArguments(
+                                ((ArgumentListSyntax)VisitArgumentList(
+                                    node.ArgumentList
+                                )!).Arguments.Insert(
+                                    0,
+                                    SyntaxFactory.Argument(
+                                        (ExpressionSyntax)Visit(
+                                            memberAccessExpressionSyntax
+                                                .Expression
+                                        )
+                                    )
                                 )
                             )
-                        )
-                    );
+                        );
+                    }
+
+                    var displayString =
+                        methodSymbol.ContainingNamespace.ToDisplayString();
+                    if (displayString == "EntityFrameworkCore.Projectables" &&
+                        methodSymbol.Name == "Extend")
+                    {
+                        var baseFunction =
+                            GetSourceMethod(node.ArgumentList.Arguments[0]);
+                        if (baseFunction == null) return ReportError("Could not find base function.");
+
+                        var baseSymbol = _semanticModel
+                            .GetSymbolInfo(baseFunction)
+                            .Symbol;
+
+                        if (baseSymbol is not IMethodSymbol baseMethodSymbol)
+                            return ReportError("Could not resolve base function contents.");
+
+
+
+                        var baseMethodBody = BodyWriter.New(baseMethodSymbol)!;
+                        var addedSyntax =
+                            node.ArgumentList.Arguments[1].Expression;
+
+
+                        var oldSyntax = baseMethodBody.Expression();
+
+                        var merged = Merge(
+                            oldSyntax,
+                            (ExpressionSyntax?)Visit(addedSyntax),
+                            baseMethodSymbol.ContainingType
+                        );
+                        return merged;
+                    }
                 }
             }
 
@@ -81,41 +174,51 @@ namespace EntityFrameworkCore.Projectables.Generator
         {
             // Visit the expression first
             var targetExpression = (ExpressionSyntax)Visit(node.Expression);
-            
+
             // Check if the expression already has parentheses
             if (targetExpression is ParenthesizedExpressionSyntax)
             {
                 return node.WithExpression(targetExpression);
             }
-            
+
             // Create a new expression wrapped in parentheses
-            var newExpression = SyntaxFactory.ParenthesizedExpression(targetExpression);
-            
+            var newExpression =
+                SyntaxFactory.ParenthesizedExpression(targetExpression);
+
             return node.WithExpression(newExpression);
         }
 
-        public override SyntaxNode? VisitConditionalAccessExpression(ConditionalAccessExpressionSyntax node)
+        public override SyntaxNode? VisitConditionalAccessExpression(
+            ConditionalAccessExpressionSyntax node
+        )
         {
             var targetExpression = (ExpressionSyntax)Visit(node.Expression);
 
             _conditionalAccessExpressionsStack.Push(targetExpression);
 
-            if (_nullConditionalRewriteSupport == NullConditionalRewriteSupport.None)
+            if (_nullConditionalRewriteSupport ==
+                NullConditionalRewriteSupport.None)
             {
-                var diagnostic = Diagnostic.Create(Diagnostics.NullConditionalRewriteUnsupported, node.GetLocation(), node);
+                var diagnostic = Diagnostic.Create(
+                    Diagnostics.NullConditionalRewriteUnsupported,
+                    node.GetLocation(),
+                    node
+                );
                 _context.ReportDiagnostic(diagnostic);
 
                 // Return the original node, do not attempt further rewrites
                 return node;
             }
 
-            else if (_nullConditionalRewriteSupport is NullConditionalRewriteSupport.Ignore)
+            else if (_nullConditionalRewriteSupport is
+                     NullConditionalRewriteSupport.Ignore)
             {
                 // Ignore the conditional accesss and simply visit the WhenNotNull expression
                 return Visit(node.WhenNotNull);
             }
 
-            else if (_nullConditionalRewriteSupport is NullConditionalRewriteSupport.Rewrite)
+            else if (_nullConditionalRewriteSupport is
+                     NullConditionalRewriteSupport.Rewrite)
             {
                 var typeInfo = _semanticModel.GetTypeInfo(node);
 
@@ -124,20 +227,57 @@ namespace EntityFrameworkCore.Projectables.Generator
                 {
                     // Translate null-conditional into a conditional expression, wrapped inside parenthesis
                     return SyntaxFactory.ParenthesizedExpression(
-                        SyntaxFactory.ConditionalExpression(
-                        SyntaxFactory.BinaryExpression(
-                            SyntaxKind.NotEqualsExpression,
-                            targetExpression.WithTrailingTrivia(SyntaxFactory.Whitespace(" ")),
-                            SyntaxFactory.LiteralExpression(SyntaxKind.NullLiteralExpression).WithLeadingTrivia(SyntaxFactory.Whitespace(" "))
-                       ).WithTrailingTrivia(SyntaxFactory.Whitespace(" ")),
-                       SyntaxFactory.ParenthesizedExpression(
-                           (ExpressionSyntax)Visit(node.WhenNotNull)
-                       ).WithLeadingTrivia(SyntaxFactory.Whitespace(" ")).WithTrailingTrivia(SyntaxFactory.Whitespace(" ")),
-                        SyntaxFactory.CastExpression(
-                            SyntaxFactory.ParseName(typeInfo.ConvertedType.ToDisplayString(SymbolDisplayFormat.FullyQualifiedFormat)),
-                            SyntaxFactory.LiteralExpression(SyntaxKind.NullLiteralExpression)
-                        ).WithLeadingTrivia(SyntaxFactory.Whitespace(" "))
-                    ).WithLeadingTrivia(node.GetLeadingTrivia()).WithTrailingTrivia(node.GetTrailingTrivia()));
+                        SyntaxFactory
+                            .ConditionalExpression(
+                                SyntaxFactory
+                                    .BinaryExpression(
+                                        SyntaxKind.NotEqualsExpression,
+                                        targetExpression.WithTrailingTrivia(
+                                            SyntaxFactory.Whitespace(" ")
+                                        ),
+                                        SyntaxFactory
+                                            .LiteralExpression(
+                                                SyntaxKind.NullLiteralExpression
+                                            )
+                                            .WithLeadingTrivia(
+                                                SyntaxFactory.Whitespace(" ")
+                                            )
+                                    )
+                                    .WithTrailingTrivia(
+                                        SyntaxFactory.Whitespace(" ")
+                                    ),
+                                SyntaxFactory
+                                    .ParenthesizedExpression(
+                                        (ExpressionSyntax)Visit(
+                                            node.WhenNotNull
+                                        )
+                                    )
+                                    .WithLeadingTrivia(
+                                        SyntaxFactory.Whitespace(" ")
+                                    )
+                                    .WithTrailingTrivia(
+                                        SyntaxFactory.Whitespace(" ")
+                                    ),
+                                SyntaxFactory
+                                    .CastExpression(
+                                        SyntaxFactory.ParseName(
+                                            typeInfo.ConvertedType
+                                                .ToDisplayString(
+                                                    SymbolDisplayFormat
+                                                        .FullyQualifiedFormat
+                                                )
+                                        ),
+                                        SyntaxFactory.LiteralExpression(
+                                            SyntaxKind.NullLiteralExpression
+                                        )
+                                    )
+                                    .WithLeadingTrivia(
+                                        SyntaxFactory.Whitespace(" ")
+                                    )
+                            )
+                            .WithLeadingTrivia(node.GetLeadingTrivia())
+                            .WithTrailingTrivia(node.GetTrailingTrivia())
+                    );
                 }
             }
 
@@ -145,7 +285,9 @@ namespace EntityFrameworkCore.Projectables.Generator
 
         }
 
-        public override SyntaxNode? VisitSwitchExpression(SwitchExpressionSyntax node)
+        public override SyntaxNode? VisitSwitchExpression(
+            SwitchExpressionSyntax node
+        )
         {
             // Reverse arms order to start from the default value
             var arms = node.Arms.Reverse();
@@ -155,32 +297,39 @@ namespace EntityFrameworkCore.Projectables.Generator
             foreach (var arm in arms)
             {
                 var armExpression = (ExpressionSyntax)Visit(arm.Expression);
-                
+
                 // Handle fallback value
                 if (currentExpression == null)
                 {
-                    currentExpression = arm.Pattern is DiscardPatternSyntax 
+                    currentExpression = arm.Pattern is DiscardPatternSyntax
                         ? armExpression
-                        : SyntaxFactory.LiteralExpression(SyntaxKind.NullLiteralExpression);
+                        : SyntaxFactory.LiteralExpression(
+                            SyntaxKind.NullLiteralExpression
+                        );
 
                     continue;
                 }
-                
+
                 // Handle each arm, only if it's a constant expression
                 if (arm.Pattern is ConstantPatternSyntax constant)
                 {
-                    ExpressionSyntax expression = SyntaxFactory.BinaryExpression(SyntaxKind.EqualsExpression, (ExpressionSyntax)Visit(node.GoverningExpression), constant.Expression);
-                    
+                    ExpressionSyntax expression =
+                        SyntaxFactory.BinaryExpression(
+                            SyntaxKind.EqualsExpression,
+                            (ExpressionSyntax)Visit(node.GoverningExpression),
+                            constant.Expression
+                        );
+
                     // Add the when clause as a AND expression
                     if (arm.WhenClause != null)
                     {
                         expression = SyntaxFactory.BinaryExpression(
-                            SyntaxKind.LogicalAndExpression, 
+                            SyntaxKind.LogicalAndExpression,
                             expression,
                             (ExpressionSyntax)Visit(arm.WhenClause.Condition)
                         );
                     }
-                    
+
                     currentExpression = SyntaxFactory.ConditionalExpression(
                         expression,
                         armExpression,
@@ -190,21 +339,35 @@ namespace EntityFrameworkCore.Projectables.Generator
                     continue;
                 }
 
-                throw new InvalidOperationException("Switch expressions rewriting is only supported with constant values");
+                throw new InvalidOperationException(
+                    "Switch expressions rewriting is only supported with constant values"
+                );
             }
-            
+
             return currentExpression;
         }
 
-        public override SyntaxNode? VisitMemberBindingExpression(MemberBindingExpressionSyntax node)
+        public override SyntaxNode? VisitMemberBindingExpression(
+            MemberBindingExpressionSyntax node
+        )
         {
             if (_conditionalAccessExpressionsStack.Count > 0)
             {
                 var targetExpression = _conditionalAccessExpressionsStack.Pop();
 
                 return _nullConditionalRewriteSupport switch {
-                    NullConditionalRewriteSupport.Ignore => SyntaxFactory.MemberAccessExpression(SyntaxKind.SimpleMemberAccessExpression, targetExpression, node.Name),
-                    NullConditionalRewriteSupport.Rewrite => SyntaxFactory.MemberAccessExpression(SyntaxKind.SimpleMemberAccessExpression, targetExpression, node.Name),
+                    NullConditionalRewriteSupport.Ignore => SyntaxFactory
+                        .MemberAccessExpression(
+                            SyntaxKind.SimpleMemberAccessExpression,
+                            targetExpression,
+                            node.Name
+                        ),
+                    NullConditionalRewriteSupport.Rewrite => SyntaxFactory
+                        .MemberAccessExpression(
+                            SyntaxKind.SimpleMemberAccessExpression,
+                            targetExpression,
+                            node.Name
+                        ),
                     _ => node
                 };
             }
@@ -212,15 +375,25 @@ namespace EntityFrameworkCore.Projectables.Generator
             return base.VisitMemberBindingExpression(node);
         }
 
-        public override SyntaxNode? VisitElementBindingExpression(ElementBindingExpressionSyntax node)
+        public override SyntaxNode? VisitElementBindingExpression(
+            ElementBindingExpressionSyntax node
+        )
         {
             if (_conditionalAccessExpressionsStack.Count > 0)
             {
                 var targetExpression = _conditionalAccessExpressionsStack.Pop();
 
                 return _nullConditionalRewriteSupport switch {
-                    NullConditionalRewriteSupport.Ignore => SyntaxFactory.ElementAccessExpression(targetExpression, node.ArgumentList),
-                    NullConditionalRewriteSupport.Rewrite => SyntaxFactory.ElementAccessExpression(targetExpression, node.ArgumentList),
+                    NullConditionalRewriteSupport.Ignore => SyntaxFactory
+                        .ElementAccessExpression(
+                            targetExpression,
+                            node.ArgumentList
+                        ),
+                    NullConditionalRewriteSupport.Rewrite => SyntaxFactory
+                        .ElementAccessExpression(
+                            targetExpression,
+                            node.ArgumentList
+                        ),
                     _ => Visit(node)
                 };
             }
@@ -228,81 +401,155 @@ namespace EntityFrameworkCore.Projectables.Generator
             return base.VisitElementBindingExpression(node);
         }
 
-        public override SyntaxNode? VisitThisExpression(ThisExpressionSyntax node)
+        public override SyntaxNode? VisitThisExpression(
+            ThisExpressionSyntax node
+        )
         {
             // Swap out the use of this to @this
             return VisitThisBaseExpression(node);
         }
 
-        public override SyntaxNode? VisitBaseExpression(BaseExpressionSyntax node)
+        public override SyntaxNode? VisitBaseExpression(
+            BaseExpressionSyntax node
+        )
         {
             // Swap out the use of this to @this
             return VisitThisBaseExpression(node);
         }
 
-        public override SyntaxNode? VisitIdentifierName(IdentifierNameSyntax node)
+        public override SyntaxNode? VisitIdentifierName(
+            IdentifierNameSyntax node
+        )
         {
             var symbol = _semanticModel.GetSymbolInfo(node).Symbol;
             if (symbol is not null)
             {
-                var operation = node switch { { Parent: { } parent } when parent.IsKind(SyntaxKind.InvocationExpression) => _semanticModel.GetOperation(node.Parent),
+                var operation = node switch {
+                    { Parent: {} parent } when parent.IsKind(
+                        SyntaxKind.InvocationExpression
+                    ) => _semanticModel.GetOperation(node.Parent),
                     _ => _semanticModel.GetOperation(node!)
                 };
 
-                if (operation is IMemberReferenceOperation memberReferenceOperation)
+                if (operation is IMemberReferenceOperation
+                    memberReferenceOperation)
                 {
-                    var memberAccessCanBeQualified = node switch { { Parent: { Parent: { } parent } } when parent.IsKind(SyntaxKind.ObjectInitializerExpression) => false,
-                        _ => true
-                    };
+                    bool memberAccessCanBeQualified;
+                    switch (node)
+                    {
+                        case { Parent: { Parent: {} parent } firstParent }
+                            when parent.IsKind(
+                                SyntaxKind.ObjectInitializerExpression
+                            ):
+
+                            if (firstParent is AssignmentExpressionSyntax
+                                firstParentAssignment)
+                            {
+                                if (firstParentAssignment.Right == node)
+                                {
+                                    memberAccessCanBeQualified = true;
+                                    break;
+                                }
+                            }
+                            memberAccessCanBeQualified = false;
+                            break;
+                        default:
+                            memberAccessCanBeQualified = true;
+                            break;
+                    }
 
                     if (memberAccessCanBeQualified)
                     {
                         // if this operation is targeting an instance member on our targetType implicitly
-                        if (memberReferenceOperation.Instance is { IsImplicit: true } && SymbolEqualityComparer.Default.Equals(memberReferenceOperation.Instance.Type, _targetTypeSymbol))
+                        if (memberReferenceOperation.Instance is
+                                { IsImplicit: true } &&
+                            SymbolEqualityComparer.Default.Equals(
+                                memberReferenceOperation.Instance.Type,
+                                _targetTypeSymbol
+                            ))
                         {
-                            return SyntaxFactory.MemberAccessExpression(SyntaxKind.SimpleMemberAccessExpression,
-                                SyntaxFactory.IdentifierName("@this"),
-                                node.WithoutLeadingTrivia()
-                            ).WithLeadingTrivia(node.GetLeadingTrivia());
+                            var memberAccessExpressionSyntax = SyntaxFactory
+                                .MemberAccessExpression(
+                                    SyntaxKind.SimpleMemberAccessExpression,
+                                    SyntaxFactory.IdentifierName("@this"),
+                                    node.WithoutLeadingTrivia()
+                                )
+                                .WithLeadingTrivia(node.GetLeadingTrivia());
+                            return memberAccessExpressionSyntax;
                         }
 
                         // if this operation is targeting a static member on our targetType implicitly
-                        if (memberReferenceOperation.Instance is null && SymbolEqualityComparer.Default.Equals(memberReferenceOperation.Member.ContainingType, _targetTypeSymbol))
+                        if (memberReferenceOperation.Instance is null &&
+                            SymbolEqualityComparer.Default.Equals(
+                                memberReferenceOperation.Member.ContainingType,
+                                _targetTypeSymbol
+                            ))
                         {
-                            return SyntaxFactory.MemberAccessExpression(SyntaxKind.SimpleMemberAccessExpression,
-                                SyntaxFactory.ParseTypeName(_targetTypeSymbol.ToDisplayString(SymbolDisplayFormat.FullyQualifiedFormat)),
-                                node.WithoutLeadingTrivia()
-                            ).WithLeadingTrivia(node.GetLeadingTrivia());
+                            return SyntaxFactory
+                                .MemberAccessExpression(
+                                    SyntaxKind.SimpleMemberAccessExpression,
+                                    SyntaxFactory.ParseTypeName(
+                                        _targetTypeSymbol.ToDisplayString(
+                                            SymbolDisplayFormat
+                                                .FullyQualifiedFormat
+                                        )
+                                    ),
+                                    node.WithoutLeadingTrivia()
+                                )
+                                .WithLeadingTrivia(node.GetLeadingTrivia());
                         }
                     }
                 }
                 else if (operation is IInvocationOperation invocationOperation)
                 {
                     // if this operation is targeting an instance method on our targetType implicitly
-                    if (invocationOperation.Instance is { IsImplicit: true } && SymbolEqualityComparer.Default.Equals(invocationOperation.Instance.Type, _targetTypeSymbol))
+                    if (invocationOperation.Instance is { IsImplicit: true } &&
+                        SymbolEqualityComparer.Default.Equals(
+                            invocationOperation.Instance.Type,
+                            _targetTypeSymbol
+                        ))
                     {
-                        return SyntaxFactory.MemberAccessExpression(SyntaxKind.SimpleMemberAccessExpression,
-                            SyntaxFactory.IdentifierName("@this"),
-                            node.WithoutLeadingTrivia()
-                        ).WithLeadingTrivia(node.GetLeadingTrivia());
+                        return SyntaxFactory
+                            .MemberAccessExpression(
+                                SyntaxKind.SimpleMemberAccessExpression,
+                                SyntaxFactory.IdentifierName("@this"),
+                                node.WithoutLeadingTrivia()
+                            )
+                            .WithLeadingTrivia(node.GetLeadingTrivia());
                     }
 
                     // if this operation is targeting a static method on our targetType implicitly
-                    if (invocationOperation.Instance is null && SymbolEqualityComparer.Default.Equals(invocationOperation.TargetMethod.ContainingType, _targetTypeSymbol))
+                    if (invocationOperation.Instance is null &&
+                        SymbolEqualityComparer.Default.Equals(
+                            invocationOperation.TargetMethod.ContainingType,
+                            _targetTypeSymbol
+                        ))
                     {
-                        return SyntaxFactory.MemberAccessExpression(SyntaxKind.SimpleMemberAccessExpression,
-                            SyntaxFactory.ParseTypeName(_targetTypeSymbol.ToDisplayString(SymbolDisplayFormat.FullyQualifiedFormat)),
-                            node.WithoutLeadingTrivia()
-                        ).WithLeadingTrivia(node.GetLeadingTrivia());
+                        return SyntaxFactory
+                            .MemberAccessExpression(
+                                SyntaxKind.SimpleMemberAccessExpression,
+                                SyntaxFactory.ParseTypeName(
+                                    _targetTypeSymbol.ToDisplayString(
+                                        SymbolDisplayFormat.FullyQualifiedFormat
+                                    )
+                                ),
+                                node.WithoutLeadingTrivia()
+                            )
+                            .WithLeadingTrivia(node.GetLeadingTrivia());
                     }
                 }
 
                 // if this node refers to a named type which is not yet fully qualified, we want to fully qualify it
-                if (symbol.Kind is SymbolKind.NamedType && node.Parent?.Kind() is not SyntaxKind.QualifiedName)
+                if (symbol.Kind is SymbolKind.NamedType &&
+                    node.Parent?.Kind() is not SyntaxKind.QualifiedName)
                 {
-                    return SyntaxFactory.ParseTypeName(
-                        symbol.ToDisplayString(SymbolDisplayFormat.FullyQualifiedFormat)
-                    ).WithLeadingTrivia(node.GetLeadingTrivia());
+                    return SyntaxFactory
+                        .ParseTypeName(
+                            symbol.ToDisplayString(
+                                SymbolDisplayFormat.FullyQualifiedFormat
+                            )
+                        )
+                        .WithLeadingTrivia(node.GetLeadingTrivia());
                 }
             }
 
@@ -322,7 +569,9 @@ namespace EntityFrameworkCore.Projectables.Generator
                     if (typeInfo.Type is not null)
                     {
                         return SyntaxFactory.ParseTypeName(
-                            typeInfo.Type.ToDisplayString(SymbolDisplayFormat.FullyQualifiedFormat)
+                            typeInfo.Type.ToDisplayString(
+                                SymbolDisplayFormat.FullyQualifiedFormat
+                            )
                         );
                     }
                 }
@@ -346,5 +595,124 @@ namespace EntityFrameworkCore.Projectables.Generator
 
             return base.VisitNullableType(node);
         }
+
+        public ExpressionSyntax? Merge(
+            ExpressionSyntax? baseExpression,
+            ExpressionSyntax? addedExpression,
+            INamedTypeSymbol baseType
+        )
+        {
+            if (baseExpression is not ObjectCreationExpressionSyntax e0 ||
+                addedExpression is not ObjectCreationExpressionSyntax e1)
+            {
+                return null;
+            }
+            var baseFields = (e0.Initializer?.Expressions)!.Value;
+            var addedFields = (e1.Initializer?.Expressions)!.Value;
+
+            //var output = baseFields;
+            var newFields = new Dictionary<string, ExpressionSyntax>();
+
+            ScopeTargetType(
+                baseType,
+                () => {
+                    foreach (var field in baseFields)
+                    {
+                        var assignment = (AssignmentExpressionSyntax)field;
+                        newFields[assignment.Left.ToString()] =
+                            (AssignmentExpressionSyntax?)
+                            VisitAssignmentExpression(assignment)!;
+                    }
+                }
+            );
+
+            foreach (var field in addedFields)
+            {
+                var assignment = (AssignmentExpressionSyntax)field;
+                newFields[assignment.Left.ToString()] = assignment;
+            }
+
+            var output =
+                SeparatedSyntaxList.Create<ExpressionSyntax>(
+                    newFields.Values.ToArray()
+                );
+            //var expressionSyntaxes = baseFields.AddRange(addedFields);
+            //var separatedSyntaxList = new SeparatedSyntaxList<ExpressionSyntax>(baseFields);
+
+            //
+            //e1.WithInitializer(
+            //    e1.Initializer.WithExpressions()
+            //    )
+            //e1.Update(e1.NewKeyword, e1.Type, e1.ArgumentList, e1.Initializer);
+
+            return e1.WithInitializer(e1.Initializer.WithExpressions(output));
+        }
+
+
+
+        public static ExpressionSyntax? GetSourceMethod(
+            SyntaxNode syntax
+        )
+        {
+            if (syntax is MemberAccessExpressionSyntax memberAccess)
+            {
+                return memberAccess;
+            }
+            if (syntax is IdentifierNameSyntax nameSyntax)
+            {
+                return nameSyntax;
+            }
+            if (syntax is ArgumentSyntax argumentSyntax)
+            {
+                return GetSourceMethod(argumentSyntax.Expression);
+            }
+
+            if (syntax is InvocationExpressionSyntax invocationSyntax)
+            {
+                return GetSourceMethod(invocationSyntax.Expression);
+            }
+
+            return null;
+        }
+
     }
+
+
+}class BodyWriter
+{
+    private  SyntaxNode _node;
+    public BodyWriter(SyntaxNode node) {
+        _node = node;
+    }
+
+    public static BodyWriter? New(IMethodSymbol methodSymbol)
+    {
+        // Ensure the method has at least one syntax reference
+        var syntaxReference =
+            methodSymbol.DeclaringSyntaxReferences.FirstOrDefault();
+        if (syntaxReference == null)
+            return
+                null; // The method might be from metadata (e.g., a system library)
+
+        // Get the corresponding SyntaxNode
+        var syntaxNode = syntaxReference.GetSyntax();
+        return new BodyWriter(syntaxNode);
+    }
+
+    public ExpressionSyntax? Expression()
+    {
+        var syntaxNode = _node;
+        if (syntaxNode is MethodDeclarationSyntax declaration)
+        {
+            syntaxNode = declaration.ExpressionBody;
+        }
+
+        if (syntaxNode is ArrowExpressionClauseSyntax methodDeclaration)
+        {
+            return methodDeclaration.Expression;
+        }
+
+        return null;
+    }
+    
 }

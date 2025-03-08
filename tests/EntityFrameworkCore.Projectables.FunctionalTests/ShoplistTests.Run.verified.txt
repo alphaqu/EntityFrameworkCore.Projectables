@@ -1,0 +1,2 @@
+﻿SELECT [c].[Id], [c].[AverageLifespan] * 0.5E0 AS [AverageLifespan], [c].[Age], [c].[MentalAge], CAST([c].[MentalAge] AS float) / [c].[AverageLifespan] AS [MentalLifeProgression]
+FROM [Cat] AS [c]
