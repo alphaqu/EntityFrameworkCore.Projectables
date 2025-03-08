@@ -1922,7 +1922,7 @@ using EntityFrameworkCore.Projectables;
 
             Assert.Empty(result.Diagnostics);
 
-            return Verifier.Verify(result.GeneratedTrees[0].ToString());
+            return Verifier.Verify(result.GeneratedTrees[1].ToString());
 
         }
 
