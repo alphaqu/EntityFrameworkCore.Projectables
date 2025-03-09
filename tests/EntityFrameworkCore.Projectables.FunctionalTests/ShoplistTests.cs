@@ -48,7 +48,7 @@ namespace EntityFrameworkCore.Projectables.FunctionalTests
             public double MentalLifeProgression => MentalAge / AverageLifespan;
             
             [Projectable]
-            public new CatModel ToModel() => Projectable.Extend(base.ToModel(), new CatModel {
+            public new CatModel ToModel() => Projectable.Join(base.ToModel(), new CatModel {
                 MentalAge = MentalAge,
                 MentalLifeProgression = MentalLifeProgression
             });

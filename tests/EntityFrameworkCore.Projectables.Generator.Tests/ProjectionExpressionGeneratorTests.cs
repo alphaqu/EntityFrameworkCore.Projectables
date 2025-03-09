@@ -1878,7 +1878,7 @@ class Foo {
         }
 
         [Fact]
-        public Task SpreadObjectTest()
+        public Task InnerObjectReferenceExtend()
         {
             var compilation = CreateCompilation(
                 @"
@@ -1909,7 +1909,7 @@ using EntityFrameworkCore.Projectables;
                 Name = Model.Name
             };
         [Projectable]
-            public ModelAdded ToModelAdded() => Projectable.Extend(
+            public ModelAdded ToModelAdded() => Projectable<ModelAdded>.Join(
 		ToModel(),
 		new ModelAdded() { Id = Id }
 	);
@@ -1923,9 +1923,88 @@ using EntityFrameworkCore.Projectables;
             Assert.Empty(result.Diagnostics);
 
             return Verifier.Verify(result.GeneratedTrees[1].ToString());
-
         }
 
+        [Fact]
+        public Task Spread()
+        {
+            var compilation = CreateCompilation(
+                @"
+using System;
+using System.Linq;
+using System.Collections.Generic;
+using System.ComponentModel.DataAnnotations.Schema;
+using EntityFrameworkCore.Projectables;
+
+        public class Model
+        {
+            public string Name { get; set; }
+            public int OhBaby { get; set; }
+        }
+       
+        public class DbObject
+        {
+            public Model Model { get; set; }
+        
+            [Projectable]
+            public Model ToModel() => Projectable<Model>.Spread(Model);
+        }
+      
+"
+            );
+
+            var result = RunGenerator(compilation);
+
+            Assert.Empty(result.Diagnostics);
+
+            return Verifier.Verify(result.GeneratedTrees[0].ToString());
+        }
+        [Fact]
+        public Task SpreadWithJoin()
+        {
+            var compilation = CreateCompilation(
+                @"
+using System;
+using System.Linq;
+using System.Collections.Generic;
+using System.ComponentModel.DataAnnotations.Schema;
+using EntityFrameworkCore.Projectables;
+
+        public class Model
+        {
+            public string Name { get; set; }
+            public int OhBaby { get; set; }
+        }
+        
+         public class ModelAdded : Model
+        {
+            public required int Id { get; set; }
+        }
+       
+        public class DbObject
+        {
+            public required int Id { get; set; }
+            public Model Model { get; set; }
+        
+            [Projectable]
+            public Model ToModel() => Projectable<Model>.Spread(Model);
+            
+        [Projectable]
+            public ModelAdded ToModelAdded() => Projectable<ModelAdded>.Join(
+		ToModel(),
+		new ModelAdded() { Id = Id }
+	);
+        }
+      
+", expectedToCompile:false
+            );
+
+            var result = RunGenerator(compilation);
+
+            Assert.Empty(result.Diagnostics);
+
+            return Verifier.Verify(result.GeneratedTrees[1].ToString());
+        }
         [Fact]
         public Task AdvancedExtend()
         {
@@ -1990,18 +2069,20 @@ public class Item
                 get => db_Tags.ToList();
                 set => db_Tags = value.ToArray();
             }
-        
-            [Projectable]
-            public new SupplierProduct ToModel() => Projectable.Extend(
+            
+         [Projectable]
+        public new SupplierProduct ToModel() =>
+            Projectable<SupplierProduct>.Join(
                 base.ToModel(),
-                new SupplierProduct {
-                    Id = Id,
-                    SupplierName = SupplierName,
-                    SupplierId = SupplierId,
-                    Tags = Tags
-                }
+                new { Id, SupplierName, SupplierId, Tags }
             );
-        
+
+        [Projectable]
+        public SupplierProduct ToModel2() =>
+            Projectable<SupplierProduct>.Join(
+                ToModel(),
+                new { Id = 69 }
+            );
         }
 "
             );
@@ -2010,7 +2091,7 @@ public class Item
 
             Assert.Empty(result.Diagnostics);
 
-            return Verifier.Verify(result.GeneratedTrees[3].ToString());
+            return Verifier.Verify(result.GeneratedTrees[4].ToString());
         }
 
         [Fact]

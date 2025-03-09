@@ -54,7 +54,7 @@ namespace EntityFrameworkCore.Projectables.Tests.Services
             public int Id { get; set; }
 
             [Projectable]
-            public new Thinger2 Thinger() => Projectable.Extend(base.Thinger(), new Thinger2 {
+            public new Thinger2 Thinger() => Projectable.Join(base.Thinger(), new Thinger2 {
                     BaseField = null!,
                     NewField = "Better Field!",
                 }

@@ -11,7 +11,7 @@ using System.Threading.Tasks;
 namespace EntityFrameworkCore.Projectables.Generator
 {
 
-    public class ExpressionSyntaxRewriter : CSharpSyntaxRewriter
+    public partial class ExpressionSyntaxRewriter : CSharpSyntaxRewriter
     {
         INamedTypeSymbol _targetTypeSymbol;
         readonly SemanticModel _semanticModel;
@@ -32,14 +32,6 @@ namespace EntityFrameworkCore.Projectables.Generator
             _nullConditionalRewriteSupport = nullConditionalRewriteSupport;
             _semanticModel = semanticModel;
             _context = context;
-        }
-
-        private void ScopeTargetType(INamedTypeSymbol newTarget, Action action)
-        {
-            var oldTargetSymbol = _targetTypeSymbol;
-            _targetTypeSymbol = newTarget;
-            action();
-            _targetTypeSymbol = oldTargetSymbol;
         }
 
         private SyntaxNode? VisitThisBaseExpression(CSharpSyntaxNode node)
@@ -79,18 +71,7 @@ namespace EntityFrameworkCore.Projectables.Generator
             InvocationExpressionSyntax node
         )
         {
-            SyntaxNode? ReportError(string reason)
-            {
-                _context.ReportDiagnostic(
-                    Diagnostic.Create(
-                        Diagnostics.ExtendUnsupported,
-                        node.GetLocation(),
-                        node,
-                        reason
-                    )
-                );
-                return node;
-            }
+
 
 
             // Fully qualify extension method calls
@@ -132,37 +113,74 @@ namespace EntityFrameworkCore.Projectables.Generator
                         );
                     }
 
+
+
                     var displayString =
                         methodSymbol.ContainingNamespace.ToDisplayString();
                     if (displayString == "EntityFrameworkCore.Projectables" &&
-                        methodSymbol.Name == "Extend")
+                        methodSymbol.Name == "Join")
                     {
-                        var baseFunction =
-                            GetSourceMethod(node.ArgumentList.Arguments[0]);
-                        if (baseFunction == null) return ReportError("Could not find base function.");
+                        var objectCreator =
+                            CreateObjectCreator(memberAccessExpressionSyntax);
 
-                        var baseSymbol = _semanticModel
-                            .GetSymbolInfo(baseFunction)
-                            .Symbol;
+                        foreach (var expressionSyntax in node.ArgumentList
+                                     .Arguments.Select(v => v.Expression))
+                        {
+                            var compileMethod = CompileMethod(expressionSyntax);
+                            if (objectCreator.Append(compileMethod))
+                            {
+                                continue;
+                            }
 
-                        if (baseSymbol is not IMethodSymbol baseMethodSymbol)
-                            return ReportError("Could not resolve base function contents.");
+                            ReportError(
+                                node,
+                                $"Argument {expressionSyntax} is not an object creation."
+                            );
+                            return node;
+                        }
 
 
+                        return objectCreator.Generate(_context, node);
+                    }
 
-                        var baseMethodBody = BodyWriter.New(baseMethodSymbol)!;
-                        var addedSyntax =
-                            node.ArgumentList.Arguments[1].Expression;
-
-
-                        var oldSyntax = baseMethodBody.Expression();
-
-                        var merged = Merge(
-                            oldSyntax,
-                            (ExpressionSyntax?)Visit(addedSyntax),
-                            baseMethodSymbol.ContainingType
+                    if (displayString == "EntityFrameworkCore.Projectables" &&
+                        methodSymbol.Name == "Spread")
+                    {
+                        var objectCreator =
+                            CreateObjectCreator(memberAccessExpressionSyntax);
+                        var expression = (ExpressionSyntax)Visit(
+                            node.ArgumentList.Arguments[0].Expression
                         );
-                        return merged;
+
+                        
+                        var assigners = new List<AssignmentExpressionSyntax>();
+                        foreach (var objectCreatorProperty in objectCreator.Properties)
+                        {
+                            assigners.Add( SyntaxFactory.AssignmentExpression(
+                                SyntaxKind.SimpleAssignmentExpression,
+                                SyntaxFactory.IdentifierName(
+                                    objectCreatorProperty.Name
+                                ),
+                                SyntaxFactory.MemberAccessExpression(
+                                    SyntaxKind.SimpleMemberAccessExpression,
+                                    expression,
+                                    SyntaxFactory.IdentifierName(
+                                        objectCreatorProperty.Name
+                                    )
+                                )
+                            ));
+                        }
+
+                        return SyntaxFactory.ObjectCreationExpression(
+                            objectCreator.TypeSyntax,
+                            null,
+                            SyntaxFactory.InitializerExpression(
+                                SyntaxKind.ObjectInitializerExpression,
+                                SeparatedSyntaxList.Create<ExpressionSyntax>(
+                                    assigners.ToArray()
+                                )
+                            )
+                        );
                     }
                 }
             }
@@ -596,123 +614,5 @@ namespace EntityFrameworkCore.Projectables.Generator
             return base.VisitNullableType(node);
         }
 
-        public ExpressionSyntax? Merge(
-            ExpressionSyntax? baseExpression,
-            ExpressionSyntax? addedExpression,
-            INamedTypeSymbol baseType
-        )
-        {
-            if (baseExpression is not ObjectCreationExpressionSyntax e0 ||
-                addedExpression is not ObjectCreationExpressionSyntax e1)
-            {
-                return null;
-            }
-            var baseFields = (e0.Initializer?.Expressions)!.Value;
-            var addedFields = (e1.Initializer?.Expressions)!.Value;
-
-            //var output = baseFields;
-            var newFields = new Dictionary<string, ExpressionSyntax>();
-
-            ScopeTargetType(
-                baseType,
-                () => {
-                    foreach (var field in baseFields)
-                    {
-                        var assignment = (AssignmentExpressionSyntax)field;
-                        newFields[assignment.Left.ToString()] =
-                            (AssignmentExpressionSyntax?)
-                            VisitAssignmentExpression(assignment)!;
-                    }
-                }
-            );
-
-            foreach (var field in addedFields)
-            {
-                var assignment = (AssignmentExpressionSyntax)field;
-                newFields[assignment.Left.ToString()] = assignment;
-            }
-
-            var output =
-                SeparatedSyntaxList.Create<ExpressionSyntax>(
-                    newFields.Values.ToArray()
-                );
-            //var expressionSyntaxes = baseFields.AddRange(addedFields);
-            //var separatedSyntaxList = new SeparatedSyntaxList<ExpressionSyntax>(baseFields);
-
-            //
-            //e1.WithInitializer(
-            //    e1.Initializer.WithExpressions()
-            //    )
-            //e1.Update(e1.NewKeyword, e1.Type, e1.ArgumentList, e1.Initializer);
-
-            return e1.WithInitializer(e1.Initializer.WithExpressions(output));
-        }
-
-
-
-        public static ExpressionSyntax? GetSourceMethod(
-            SyntaxNode syntax
-        )
-        {
-            if (syntax is MemberAccessExpressionSyntax memberAccess)
-            {
-                return memberAccess;
-            }
-            if (syntax is IdentifierNameSyntax nameSyntax)
-            {
-                return nameSyntax;
-            }
-            if (syntax is ArgumentSyntax argumentSyntax)
-            {
-                return GetSourceMethod(argumentSyntax.Expression);
-            }
-
-            if (syntax is InvocationExpressionSyntax invocationSyntax)
-            {
-                return GetSourceMethod(invocationSyntax.Expression);
-            }
-
-            return null;
-        }
-
     }
-
-
-}class BodyWriter
-{
-    private  SyntaxNode _node;
-    public BodyWriter(SyntaxNode node) {
-        _node = node;
-    }
-
-    public static BodyWriter? New(IMethodSymbol methodSymbol)
-    {
-        // Ensure the method has at least one syntax reference
-        var syntaxReference =
-            methodSymbol.DeclaringSyntaxReferences.FirstOrDefault();
-        if (syntaxReference == null)
-            return
-                null; // The method might be from metadata (e.g., a system library)
-
-        // Get the corresponding SyntaxNode
-        var syntaxNode = syntaxReference.GetSyntax();
-        return new BodyWriter(syntaxNode);
-    }
-
-    public ExpressionSyntax? Expression()
-    {
-        var syntaxNode = _node;
-        if (syntaxNode is MethodDeclarationSyntax declaration)
-        {
-            syntaxNode = declaration.ExpressionBody;
-        }
-
-        if (syntaxNode is ArrowExpressionClauseSyntax methodDeclaration)
-        {
-            return methodDeclaration.Expression;
-        }
-
-        return null;
-    }
-    
 }
